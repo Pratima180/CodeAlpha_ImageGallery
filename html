@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image Gallery — CodeAlpha Task 1</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --card: #1e1e1e;
+      --accent: #c8f03d;
+      --accent2: #f03d8c;
+      --text: #f0f0f0;
+      --muted: #888;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+      border-bottom: 1px solid #222;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    header h1 span { color: var(--accent); }
+
+    header p {
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    /* Filter bar */
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 1.75rem 1rem;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: var(--muted);
+      padding: 0.45rem 1.1rem;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      transition: all 0.25s;
+    }
+
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); color: #0d0d0d; border-color: var(--accent); font-weight: 600; }
+
+    /* Gallery grid */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      padding: 0 1.5rem 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .gallery-item {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      aspect-ratio: 4/3;
+      background: var(--card);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 0.4s ease;
+    }
+
+    .gallery-item:hover img { filter: brightness(0.6); }
+
+    .item-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 1.25rem;
+      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .gallery-item:hover .item-overlay { opacity: 1; }
+
+    .item-overlay h3 { font-size: 1rem; font-weight: 600; }
+    .item-overlay span {
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.25rem;
+    }
+
+    .gallery-item.hidden { display: none; }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      backdrop-filter: blur(8px);
+    }
+
+    .lightbox.open { opacity: 1; pointer-events: all; }
+
+    .lightbox-inner {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+      text-align: center;
+    }
+
+    .lightbox-inner img {
+      max-width: 100%;
+      max-height: 80vh;
+      border-radius: var(--radius);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+      display: block;
+    }
+
+    .lightbox-info {
+      margin-top: 1rem;
+      color: var(--text);
+    }
+
+    .lightbox-info h3 { font-size: 1.1rem; }
+    .lightbox-info span { color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+
+    .lb-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: white;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .lb-btn:hover { background: var(--accent); color: #000; }
+    .lb-prev { left: 1.5rem; }
+    .lb-next { right: 1.5rem; }
+
+    .lb-close {
+      position: fixed;
+      top: 1.5rem; right: 1.5rem;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: white;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .lb-close:hover { background: var(--accent2); }
+
+    .lb-counter {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 600px) {
+      .gallery { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; padding: 0 0.75rem 2rem; }
+      .lb-btn { display: none; }
+    }
+
+    /* Animate in */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .gallery-item { animation: fadeUp 0.4s ease both; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Visual <span>Gallery</span></h1>
+  <p>A curated collection — click any image to explore</p>
+</header>
+
+<div class="filters">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="nature">Nature</button>
+  <button class="filter-btn" data-filter="city">City</button>
+  <button class="filter-btn" data-filter="abstract">Abstract</button>
+  <button class="filter-btn" data-filter="architecture">Architecture</button>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" id="lbClose">✕</button>
+  <button class="lb-btn lb-prev" id="lbPrev">‹</button>
+  <div class="lightbox-inner">
+    <img id="lbImg" src="" alt="" />
+    <div class="lightbox-info">
+      <span id="lbCat"></span>
+      <h3 id="lbTitle"></h3>
+    </div>
+  </div>
+  <button class="lb-btn lb-next" id="lbNext">›</button>
+  <div class="lb-counter" id="lbCounter"></div>
+</div>
+
+<script>
+  const images = [
+    { src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800', title: 'Mountain Lake', cat: 'nature' },
+    { src: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800', title: 'City Skyline', cat: 'city' },
+    { src: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800', title: 'Color Burst', cat: 'abstract' },
+    { src: 'https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=800', title: 'Modern Tower', cat: 'architecture' },
+    { src: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800', title: 'Forest Path', cat: 'nature' },
+    { src: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=800', title: 'Night City', cat: 'city' },
+    { src: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800', title: 'Waves of Color', cat: 'abstract' },
+    { src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?w=800', title: 'Seaside Cliffs', cat: 'nature' },
+    { src: 'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800', title: 'Glass Facade', cat: 'architecture' },
+    { src: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=800', title: 'Urban Lights', cat: 'city' },
+    { src: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800', title: 'Aerial Nature', cat: 'nature' },
+    { src: 'https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=800', title: 'Neon Dreams', cat: 'abstract' },
+  ];
+
+  const gallery = document.getElementById('gallery');
+  const lightbox = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbTitle = document.getElementById('lbTitle');
+  const lbCat = document.getElementById('lbCat');
+  const lbCounter = document.getElementById('lbCounter');
+
+  let currentFilter = 'all';
+  let currentIndex = 0;
+
+  function visibleImages() {
+    return images.filter(i => currentFilter === 'all' || i.cat === currentFilter);
+  }
+
+  function renderGallery() {
+    gallery.innerHTML = '';
+    images.forEach((img, idx) => {
+      const visible = currentFilter === 'all' || img.cat === currentFilter;
+      const item = document.createElement('div');
+      item.className = 'gallery-item' + (visible ? '' : ' hidden');
+      item.style.animationDelay = `${(idx % 6) * 0.05}s`;
+      item.innerHTML = `
+        <img src="${img.src}&auto=format&fit=crop&q=80" alt="${img.title}" loading="lazy" />
+        <div class="item-overlay">
+          <span>${img.cat}</span>
+          <h3>${img.title}</h3>
+        </div>`;
+      item.addEventListener('click', () => openLightbox(idx));
+      gallery.appendChild(item);
+    });
+  }
+
+  function openLightbox(idx) {
+    currentIndex = idx;
+    updateLightbox();
+    lightbox.classList.add('open');
+  }
+
+  function updateLightbox() {
+    const img = images[currentIndex];
+    lbImg.src = img.src + '&auto=format&fit=crop&q=90';
+    lbTitle.textContent = img.title;
+    lbCat.textContent = img.cat;
+    const vis = visibleImages();
+    const pos = vis.findIndex(i => i === img);
+    lbCounter.textContent = pos >= 0 ? `${pos + 1} / ${vis.length}` : '';
+  }
+
+  function navigate(dir) {
+    const vis = visibleImages();
+    const pos = vis.findIndex(i => i === images[currentIndex]);
+    const next = (pos + dir + vis.length) % vis.length;
+    currentIndex = images.indexOf(vis[next]);
+    updateLightbox();
+  }
+
+  document.getElementById('lbPrev').addEventListener('click', () => navigate(-1));
+  document.getElementById('lbNext').addEventListener('click', () => navigate(1));
+  document.getElementById('lbClose').addEventListener('click', () => lightbox.classList.remove('open'));
+  lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+
+  document.addEventListener('keydown', e => {
+    if (!lightbox.classList.contains('open')) return;
+    if (e.key === 'ArrowLeft') navigate(-1);
+    if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === 'Escape') lightbox.classList.remove('open');
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderGallery();
+    });
+  });
+
+  renderGallery();
+</script>
+</body>
+</html>
